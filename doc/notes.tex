@@ -1,0 +1,155 @@
+% !TeX spellcheck = en_GB
+\documentclass[12pt,twoside,a4paper,hidelinks]{article}
+\usepackage[version=4]{mhchem} % support for chemical formulas
+\usepackage{physics} % support for physical formulas like Dirac's bra & ket.
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage[british]{babel}
+\usepackage[table]{xcolor}
+\usepackage{booktabs} % better-looking table
+\usepackage{wrapfig}
+\usepackage[top=3cm,bottom=3cm,left=2.5cm,right=2cm]{geometry} % Page margins
+\usepackage{indentfirst}
+\renewcommand{\baselinestretch}{1.25}
+%\renewcommand{\baselinestretch}{2}
+\usepackage{fourier} % set the font family
+\usepackage[T1]{fontenc}
+%\usepackage{amsfonts, amsmath, amssymb}
+\usepackage{easy-todo}
+
+\usepackage{authblk} % more reasonable package dealing with the order of authors
+\renewcommand\Affilfont{\itshape\small}
+%\usepackage[colorlinks]{hyperref}
+\usepackage[super,numbers,sort&compress]{natbib} % better reference
+% \setcitestyle{super}
+%\setcitestyle{super,square}
+\usepackage{verbatim}
+\usepackage{multirow}
+
+
+\usepackage{fancyhdr}
+\usepackage[lastpage,user,abspage,thepage]{zref}
+\newcommand{\beginsupplement}{%
+	\setcounter{table}{0}
+	\renewcommand{\thetable}{S\arabic{table}}%
+	\setcounter{figure}{0}
+	\renewcommand{\thefigure}{S\arabic{figure}}%
+	\renewcommand{\thepage}{S\arabic{page}}%
+}
+\usepackage{hyperref}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\today}
+\fancyhead[RE,LO]{FOR PEER-REVIEW ONLY}
+\cfoot{Page~\thepage\ ({\the\numexpr\value{abspage}+1\relax} of \zref[abspage]{LastPage})}
+% \fancyfoot[CE,CO]{Page \thepage\ of \total{page}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%% META DATA %%%%%%%%%%%%%%%
+\title{C++ implementation of the extended Lennard-Jones Potential energy function}
+
+\author[1]{Yu Zhai\thanks{Email:
+		{\texttt{yuzhai@mail.huiligroup.org}}}}
+\affil[1]{Laboratory of Theoretical and Computational Chemistry, Institute of Theoretical Chemistry, Jilin University, 2519 Jiefang Road, Changchun 130023, People’s Republic of China
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \usepackage[right, mathlines]{lineno}
+% \linenumbers
+\begin{document}
+
+\maketitle
+\thispagestyle{fancy}
+%\tableofcontents
+Following \citeauthor{Hajigeorgiou2016}'s work\cite{Hajigeorgiou2016}, in this document, I will describe how I implemented the function in C++.  
+\section{The extended Lennard-Jones function}
+The extended Lennard-Jones (ELJ) function is defined as
+\begin{equation}
+V_{\rm ELJ}=\mathcal{D}_{\rm e}\left[1-C(r)\left(\frac{r_{\rm e}}{r}\right)^{n(r)}\right]^2,
+\label{eq:V}
+\end{equation}
+where $C$ is defined as
+\begin{equation}
+C(r)=\left(1-\frac{f_{\rm LR}(r)}{f_{\rm LR}(r_{\rm e})}\right)\left(\frac{1}{2\mathcal{D}_{\rm e}}\right)\sum_{i=0}^{M}\frac{C_{n_i}}{r_{\rm e}^{n_i}}\left(\frac{r_{\rm e}}{r}\right)^{\Delta n}+\frac{f_{\rm LR}(r)}{f_{\rm LR}(r_{\rm e})},\label{eq:C}
+\end{equation}
+where $\Delta n=n_i-n_0$ and
+\begin{equation}
+f_{\rm LR}(r)=\left[1+\exp\left(\delta_{\rm LR}\left(r-R_{\rm LR}\right)\right)\right]^{-1}.\label{eq:fLR}
+\end{equation}
+The $n$ function is defined as 
+\begin{equation}\label{eq:n}
+n(r)=\begin{cases}
+\left(\sum_{i=0}^{N}\rho_i\zeta^i\right)f_{\rm n}(r)+n_0(1-f_{\rm n}(r))& r>R_{\rm c}, \\
+ae^{br}& r\leq R_{\rm c},
+\end{cases}
+\end{equation}
+and
+\begin{equation}
+f_{\rm n}(r)=\left[1+\exp\left(\delta_{\rm n}\left(r-R_{\rm n}\right)\right)\right]^{-1}.\label{eq:fn}
+\end{equation}
+$\zeta$ in Eq.\eqref{eq:n} can be of two types:
+\begin{itemize}
+	\item Dunham type
+	\begin{equation}
+	\xi=(r-r_{\rm e})/r_{r_{\rm e}},\label{eq:dunham}
+	\end{equation}
+	\item Ogilvie-Tipping type 
+	\begin{equation}
+	z=2(r-r_{\rm e})/(r+r_{\rm e}).\label{eq:ot}
+	\end{equation}
+\end{itemize}
+
+\section{Implementation details }
+The ELJ function is implemented as a class in C++ \verb|ELJ|.
+The evaluation of potential energy is regarded as reload of operator \verb|()|.
+
+I also define the following member variables to store the values (Table \ref{tab:v}).
+
+\begin{table}[hp]
+	\centering
+	\caption{Members in class \texttt{ELJ}.  For all C++ variables in the left column, namespace code \texttt{ELJ::} is omitted. }\label{tab:v}
+	\begin{tabular}{ccc}
+		\hline\hline
+		                C++ variable                 &                    Formula                    &             Notes             \\ \hline
+		                        \multicolumn{2}{c}{0. Interatomic distance}                          &                             \\ \hline
+		              \verb|double r|                &                      $r$                      &                             \\ \hline
+		                             \multicolumn{2}{c}{1. Parameters}                               &                             \\ \hline
+		          \verb|const double D_e|            &             $\mathcal{D}_{\rm e}$             &                             \\
+		          \verb|const double r_e|            &                  $r_{\rm e}$                  &                             \\
+		            \verb|const int n[]|             &                     $n_i$                     &                             \\
+		         \verb|const double C_n[]|           &                   $C_{n_i}$                   &                             \\
+		        \verb|const double delta_LR|         &               $\delta_{\rm LR}$               &                             \\
+		          \verb|const double R_LR|           &                 $R_{\rm LR}$                  &                             \\
+		          \verb|const double R_c|            &                  $R_{\rm c}$                  &                             \\
+		         \verb|const double rho[]|           &                   $\rho_i$                    &                             \\
+		        \verb|const double delta_n|          &               $\delta_{\rm n}$                &                             \\
+		          \verb|const double R_n|            &                  $R_{\rm n}$                  &                             \\
+		           \verb|const double a|             &                      $a$                      &                             \\
+		           \verb|const double b|             &                      $b$                      &                             \\ \hline
+		                                \multicolumn{2}{c}{2. Terms}                                 &                             \\ \hline
+		      \verb|const double fLRre|        &            $f_{\rm LR}(r_{\rm e})$            &                             \\
+		             \verb|double ffLR|              & $\frac{f_{\rm LR}(r)}{f_{\rm LR}(r_{\rm e})}$ &                             \\
+		              \verb|double rr|               &             $\frac{r_{\rm e}}{r}$             &                             \\
+		            \verb|double Cnre[]|             &       $\frac{C_{n_i}}{r_{\rm e}^{n_i}}$       &                             \\
+		       \verb|const double over2De|        &       $\frac{1}{2\mathcal{D}_{\rm e}}$        &                             \\
+		                              \multicolumn{2}{c}{3. Functions}                               &                             \\
+		           \verb|double C()const|            &                    $C(r)$                     &        Eq.~\eqref{eq:C}         \\
+		           \verb|double n()const|            &                    $n(r)$                     &        Eq.~\eqref{eq:n}         \\
+		\verb|double f(double delta, double r)const| &      $f_{\rm LR}(r)$ and $f_{\rm LR}(r)$      & Eqs.~\eqref{eq:fLR}\eqref{eq:fn} \\
+		          \verb|double xi()const|            &                     $\xi$                     &      Eq.~\eqref{eq:dunham}      \\
+		           \verb|double z()const|            &                      $z$                      &        Eq.~\eqref{eq:ot}        \\ \hline\hline
+	\end{tabular}
+\end{table}
+\section*{Acknowledgement}\label{sec:acknowledge}
+
+This work is sponsored by nobody\ldots
+
+
+
+\bibliographystyle{unsrtnat}
+\bibliography{/home/yuzhai/Library/000ref}
+
+\newpage
+%\listoftodos
+
+\end{document}
